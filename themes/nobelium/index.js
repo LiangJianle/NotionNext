@@ -1,6 +1,5 @@
-import BLOG from '@/blog.config'
 import CONFIG from './config'
-import React, { createContext, useEffect, useState, useContext, useRef } from 'react'
+import { createContext, useEffect, useState, useContext, useRef } from 'react'
 import Nav from './components/Nav'
 import { Footer } from './components/Footer'
 import JumpToTopButton from './components/JumpToTopButton'
@@ -25,6 +24,7 @@ import { Style } from './style'
 import replaceSearchResult from '@/components/Mark'
 import CommonHead from '@/components/CommonHead'
 import AlgoliaSearchModal from '@/components/AlgoliaSearchModal'
+import { siteConfig } from '@/lib/config'
 
 // 主题全局状态
 const ThemeGlobalNobelium = createContext()
@@ -45,7 +45,7 @@ const LayoutBase = props => {
 
   return (
         <ThemeGlobalNobelium.Provider value={{ searchModal }}>
-            <div id='theme-nobelium' className='nobelium relative dark:text-gray-300  w-full  bg-white dark:bg-black min-h-screen'>
+            <div id='theme-nobelium' className='nobelium relative dark:text-gray-300  w-full  bg-white dark:bg-black min-h-screen flex flex-col'>
                 {/* SEO相关 */}
                 <CommonHead meta={meta} />
                 {/* SEO相关 */}
@@ -132,7 +132,7 @@ const LayoutPostList = props => {
   return (
         <LayoutBase {...props} topSlot={<BlogListBar {...props} setFilterKey={setFilterKey} />}>
             {topSlot}
-            {BLOG.POST_LIST_STYLE === 'page' ? <BlogListPage {...props} posts={filteredBlogPosts} /> : <BlogListScroll {...props} posts={filteredBlogPosts} />}
+            {siteConfig('POST_LIST_STYLE') === 'page' ? <BlogListPage {...props} posts={filteredBlogPosts} /> : <BlogListScroll {...props} posts={filteredBlogPosts} />}
         </LayoutBase>
   )
 }
@@ -144,7 +144,7 @@ const LayoutPostList = props => {
  * @returns
  */
 const LayoutSearch = props => {
-  const { keyword } = props
+  const { keyword, posts } = props
   useEffect(() => {
     if (isBrowser) {
       replaceSearchResult({
@@ -157,7 +157,24 @@ const LayoutSearch = props => {
       })
     }
   }, [])
-  return <LayoutPostList {...props} slotTop={<SearchNavBar {...props} />} />
+
+  // 在列表中进行实时过滤
+  const [filterKey, setFilterKey] = useState('')
+  let filteredBlogPosts = []
+  if (filterKey && posts) {
+    filteredBlogPosts = posts.filter(post => {
+      const tagContent = post?.tags ? post?.tags.join(' ') : ''
+      const searchContent = post.title + post.summary + tagContent
+      return searchContent.toLowerCase().includes(filterKey.toLowerCase())
+    })
+  } else {
+    filteredBlogPosts = deepClone(posts)
+  }
+
+  return <LayoutBase {...props} topSlot={<BlogListBar {...props} setFilterKey={setFilterKey} />}>
+    <SearchNavBar {...props} />
+    {siteConfig('POST_LIST_STYLE') === 'page' ? <BlogListPage {...props} posts={filteredBlogPosts} /> : <BlogListScroll {...props} posts={filteredBlogPosts} />}
+  </LayoutBase>
 }
 
 /**
